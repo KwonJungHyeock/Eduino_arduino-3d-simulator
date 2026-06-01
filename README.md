@@ -46,8 +46,23 @@ to DynamoDB.
 ## Scripts
 
 ```bash
-npm install     # install dependencies
-npm run dev     # start the Vite dev server
-npm run build   # type-check (tsc -b) + production build
-npm run preview # preview the production build
+npm install      # install dependencies
+npm run dev      # start the Vite dev server
+npm run build    # type-check (tsc -b) + production build
+npm run preview  # preview the production build
+npm test         # run the test suite once (Vitest)
+npm run test:watch  # run tests in watch mode
+npm run test:ui     # run tests with the Vitest UI
 ```
+
+## Testing
+
+Tests use [Vitest](https://vitest.dev/) with a `jsdom` environment and
+[Testing Library](https://testing-library.com/).
+
+- `src/store/useSimulatorStore.test.ts` — covers every store action plus a
+  JSON serialize/deserialize round-trip that mirrors persisting to DynamoDB.
+- `src/components/Toolbar.test.tsx` — renders the overlay UI and asserts it
+  reads from and dispatches to the store (the unidirectional data flow).
+
+The global store is reset between tests via `src/test/setup.ts`.

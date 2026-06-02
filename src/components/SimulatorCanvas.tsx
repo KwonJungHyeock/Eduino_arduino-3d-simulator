@@ -1,41 +1,24 @@
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, Environment } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
-
-/**
- * Placeholder Arduino board mesh.
- *
- * This is a stand-in for the real GLTF board model that will be loaded later.
- * It pulses subtly while the simulation is running to give immediate visual
- * feedback that the run-state in the store is wired up end-to-end.
- */
-function BoardPlaceholder() {
-  const isRunning = useSimulatorStore((s) => s.isRunning)
-
-  return (
-    <mesh position={[0, 0.1, 0]} castShadow receiveShadow>
-      <boxGeometry args={[3, 0.2, 2]} />
-      <meshStandardMaterial
-        color={isRunning ? '#1d9bf0' : '#0b6e4f'}
-        emissive={isRunning ? '#0a3a5c' : '#000000'}
-        emissiveIntensity={isRunning ? 0.6 : 0}
-        metalness={0.2}
-        roughness={0.6}
-      />
-    </mesh>
-  )
-}
+import ArduinoBoard from './ArduinoBoard'
+import Wires from './Wires'
 
 /**
  * The 3D workspace. All heavy rendering runs on the client GPU via Three.js,
  * keeping AWS infrastructure costs minimal (no server-side rendering).
+ *
+ * Clicking empty space (a pointer miss) cancels any in-progress wiring.
  */
 export default function SimulatorCanvas() {
+  const clearSelection = useSimulatorStore((s) => s.clearSelection)
+
   return (
     <Canvas
       shadows
       camera={{ position: [4, 4, 6], fov: 50 }}
       className="h-full w-full"
+      onPointerMissed={() => clearSelection()}
     >
       <ambientLight intensity={0.5} />
       <directionalLight
@@ -45,7 +28,8 @@ export default function SimulatorCanvas() {
         shadow-mapSize={[2048, 2048]}
       />
 
-      <BoardPlaceholder />
+      <ArduinoBoard />
+      <Wires />
 
       <Grid
         args={[20, 20]}

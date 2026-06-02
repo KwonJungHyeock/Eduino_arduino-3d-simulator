@@ -29,12 +29,33 @@ virtual data feeding and simulation.
 src/
   components/
     SimulatorCanvas.tsx   # react-three-fiber 3D workspace (client GPU)
+    ArduinoBoard.tsx      # Arduino Uno board + clickable pin headers
+    Wires.tsx             # curved cables rendered between connected pins
     Toolbar.tsx           # overlay UI; reads/dispatches store actions
+  domain/
+    board.ts              # static Arduino Uno pin layout + position/label lookups
+    wiring.ts             # pure click-to-connect logic (color, dedupe, resolve)
   store/
     useSimulatorStore.ts  # zustand store; DynamoDB-serializable snapshot
   App.tsx                 # app shell (canvas + overlays)
   main.tsx                # entry point
 ```
+
+## Wiring (click-to-connect)
+
+The first feature of the simulator UX. Pins are rendered as interactive headers
+on the board:
+
+1. Click a pin — it becomes the pending connection (highlighted amber).
+2. Click a second pin — a colored wire is drawn between them and stored in
+   `wires`. Clicking the same pin again, or empty space, cancels.
+
+Duplicate connections between the same pair are ignored, and each wire gets the
+next color from a rotating palette. The pure decision logic lives in
+`domain/wiring.ts` (fully unit-tested); the store's `selectPin` action applies
+it, keeping the 3D scene a pure function of store state. The transient
+`pendingPinId` is deliberately excluded from `SimulatorSnapshot`, so it is never
+persisted to DynamoDB.
 
 ### State model (`useSimulatorStore`)
 
@@ -60,8 +81,12 @@ npm run test:ui     # run tests with the Vitest UI
 Tests use [Vitest](https://vitest.dev/) with a `jsdom` environment and
 [Testing Library](https://testing-library.com/).
 
-- `src/store/useSimulatorStore.test.ts` — covers every store action plus a
-  JSON serialize/deserialize round-trip that mirrors persisting to DynamoDB.
+- `src/store/useSimulatorStore.test.ts` — covers every store action (incl.
+  click-to-connect wiring) plus a JSON serialize/deserialize round-trip that
+  mirrors persisting to DynamoDB.
+- `src/domain/board.test.ts` — validates the Arduino Uno pin layout and lookups.
+- `src/domain/wiring.test.ts` — covers the pure wiring logic (color cycling,
+  dedupe, click resolution).
 - `src/components/Toolbar.test.tsx` — renders the overlay UI and asserts it
   reads from and dispatches to the store (the unidirectional data flow).
 

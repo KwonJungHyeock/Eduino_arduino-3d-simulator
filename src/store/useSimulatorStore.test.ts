@@ -93,6 +93,59 @@ describe('addWire / removeWire', () => {
   })
 })
 
+describe('selectPin — click-to-connect wiring', () => {
+  it('marks the first clicked pin as pending', () => {
+    getState().selectPin('arduino-uno:D13')
+    expect(getState().pendingPinId).toBe('arduino-uno:D13')
+    expect(getState().wires).toEqual([])
+  })
+
+  it('wires two pins on the second click and clears the pending pin', () => {
+    getState().selectPin('arduino-uno:D13')
+    getState().selectPin('arduino-uno:A0')
+    expect(getState().pendingPinId).toBeNull()
+    expect(getState().wires).toHaveLength(1)
+    expect(getState().wires[0]).toMatchObject({
+      startPinId: 'arduino-uno:D13',
+      endPinId: 'arduino-uno:A0',
+    })
+  })
+
+  it('cancels when the same pin is clicked twice', () => {
+    getState().selectPin('arduino-uno:D13')
+    getState().selectPin('arduino-uno:D13')
+    expect(getState().pendingPinId).toBeNull()
+    expect(getState().wires).toEqual([])
+  })
+
+  it('does not create duplicate connections', () => {
+    getState().selectPin('arduino-uno:D13')
+    getState().selectPin('arduino-uno:A0')
+    getState().selectPin('arduino-uno:A0')
+    getState().selectPin('arduino-uno:D13')
+    expect(getState().wires).toHaveLength(1)
+  })
+})
+
+describe('clearWires / clearSelection', () => {
+  it('clearWires removes all wires and any pending selection', () => {
+    getState().selectPin('arduino-uno:D13')
+    getState().selectPin('arduino-uno:A0')
+    getState().selectPin('arduino-uno:D2')
+    getState().clearWires()
+    expect(getState().wires).toEqual([])
+    expect(getState().pendingPinId).toBeNull()
+  })
+
+  it('clearSelection cancels a pending pin without touching wires', () => {
+    getState().addWire(sampleWire())
+    getState().selectPin('arduino-uno:D13')
+    getState().clearSelection()
+    expect(getState().pendingPinId).toBeNull()
+    expect(getState().wires).toHaveLength(1)
+  })
+})
+
 describe('loadSnapshot / reset — DynamoDB round-trip', () => {
   it('hydrates the full state from a snapshot', () => {
     const snapshot: SimulatorSnapshot = {
@@ -133,11 +186,13 @@ describe('loadSnapshot / reset — DynamoDB round-trip', () => {
     getState().setPinState('arduino-uno:D13', 'HIGH')
     getState().addWire(sampleWire())
     getState().toggleSimulation()
+    getState().selectPin('arduino-uno:A0')
 
     getState().reset()
 
     expect(getState().pinStates).toEqual({})
     expect(getState().wires).toEqual([])
     expect(getState().isRunning).toBe(false)
+    expect(getState().pendingPinId).toBeNull()
   })
 })

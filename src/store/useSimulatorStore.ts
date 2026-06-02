@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { resolvePinClick } from '../domain/wiring'
 
 /**
  * Core domain types for the 3D Arduino / AIoT sensor simulator.
@@ -60,13 +61,31 @@ export interface SimulatorActions {
   addWire: (wire: Wire) => void
   /** Remove a wire by its id. */
   removeWire: (wireId: string) => void
+  /** Remove every wire from the workspace. */
+  clearWires: () => void
+  /**
+   * Handle a pin click in the 3D scene to drive click-to-connect wiring:
+   * first click selects a pin, a second click on a different pin wires them.
+   */
+  selectPin: (pinId: string) => void
+  /** Cancel any in-progress pin selection. */
+  clearSelection: () => void
   /** Replace the entire serializable state (e.g. when loading from DynamoDB). */
   loadSnapshot: (snapshot: SimulatorSnapshot) => void
   /** Reset the workspace back to its initial empty state. */
   reset: () => void
 }
 
-export type SimulatorStore = SimulatorSnapshot & SimulatorActions
+/**
+ * Full store shape: the persisted snapshot, the actions, plus transient UI
+ * state that is intentionally NOT part of `SimulatorSnapshot` and therefore
+ * never written to DynamoDB (e.g. the in-progress wiring selection).
+ */
+export type SimulatorStore = SimulatorSnapshot &
+  SimulatorActions & {
+    /** Pin awaiting a second click during wiring, or null. Transient. */
+    pendingPinId: string | null
+  }
 
 /** Initial, empty workspace state. */
 const initialState: SimulatorSnapshot = {
@@ -83,6 +102,7 @@ const initialState: SimulatorSnapshot = {
  */
 export const useSimulatorStore = create<SimulatorStore>((set) => ({
   ...initialState,
+  pendingPinId: null,
 
   toggleSimulation: () =>
     set((state) => ({ isRunning: !state.isRunning })),
@@ -100,7 +120,21 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
       wires: prev.wires.filter((w) => w.id !== wireId),
     })),
 
-  loadSnapshot: (snapshot) => set({ ...snapshot }),
+  clearWires: () => set({ wires: [], pendingPinId: null }),
 
-  reset: () => set({ ...initialState }),
+  selectPin: (pinId) =>
+    set((prev) => {
+      const result = resolvePinClick(prev.pendingPinId, pinId, prev.wires)
+      return {
+        pendingPinId: result.pendingPinId,
+        wires: result.wire ? [...prev.wires, result.wire] : prev.wires,
+      }
+    }),
+
+  clearSelection: () => set({ pendingPinId: null }),
+
+  // Transient `pendingPinId` is reset on load/reset since it is not persisted.
+  loadSnapshot: (snapshot) => set({ ...snapshot, pendingPinId: null }),
+
+  reset: () => set({ ...initialState, pendingPinId: null }),
 }))

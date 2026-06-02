@@ -34,4 +34,29 @@ describe('<Toolbar />', () => {
     render(<Toolbar />)
     expect(screen.getByText('Wires: 1')).toBeInTheDocument()
   })
+
+  it('shows the pending pin label while wiring is in progress', () => {
+    useSimulatorStore.getState().selectPin('arduino-uno:D13')
+    render(<Toolbar />)
+    expect(screen.getByText('D13')).toBeInTheDocument()
+    expect(screen.getByText(/click another pin/i)).toBeInTheDocument()
+  })
+
+  it('clears all wires via the Clear Wires button', async () => {
+    const user = userEvent.setup()
+    useSimulatorStore.getState().selectPin('arduino-uno:D13')
+    useSimulatorStore.getState().selectPin('arduino-uno:A0')
+    render(<Toolbar />)
+
+    expect(screen.getByText('Wires: 1')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Clear Wires/i }))
+
+    expect(useSimulatorStore.getState().wires).toHaveLength(0)
+    expect(screen.getByText('Wires: 0')).toBeInTheDocument()
+  })
+
+  it('disables Clear Wires when there are no wires', () => {
+    render(<Toolbar />)
+    expect(screen.getByRole('button', { name: /Clear Wires/i })).toBeDisabled()
+  })
 })

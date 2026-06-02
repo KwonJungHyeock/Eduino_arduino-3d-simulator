@@ -196,19 +196,50 @@ describe('addComponent / removeComponent', () => {
   })
 })
 
+describe('dragging — positions', () => {
+  it('moves a placed component to a new position', () => {
+    getState().addComponent('led') // led-1
+    getState().setComponentPosition('led-1', [1.5, 0.12, -0.5])
+    expect(getState().components[0].position).toEqual([1.5, 0.12, -0.5])
+  })
+
+  it('leaves other components untouched when moving one', () => {
+    getState().addComponent('led')
+    getState().addComponent('resistor')
+    const [first, second] = getState().components
+    getState().setComponentPosition(second.id, [2, 0.12, 2])
+    expect(getState().components[0].position).toEqual(first.position)
+    expect(getState().components[1].position).toEqual([2, 0.12, 2])
+  })
+
+  it('moves the board and toggles the dragging flag', () => {
+    expect(getState().boardPosition).toEqual([0, 0, 0])
+    getState().setBoardPosition([3, 0, 1])
+    expect(getState().boardPosition).toEqual([3, 0, 1])
+
+    expect(getState().isDragging).toBe(false)
+    getState().setDragging(true)
+    expect(getState().isDragging).toBe(true)
+    getState().setDragging(false)
+    expect(getState().isDragging).toBe(false)
+  })
+})
+
 describe('loadSnapshot / reset — DynamoDB round-trip', () => {
   it('hydrates the full state from a snapshot', () => {
     const snapshot: SimulatorSnapshot = {
       pinStates: { 'arduino-uno:D13': 'HIGH' },
       wires: [sampleWire()],
       components: [{ id: 'led-1', type: 'led', position: [0, 0.12, 2] }],
+      boardPosition: [1, 0, -2],
       isRunning: true,
     }
     getState().loadSnapshot(snapshot)
-    const { pinStates, wires, components, isRunning } = getState()
+    const { pinStates, wires, components, boardPosition, isRunning } = getState()
     expect(pinStates).toEqual(snapshot.pinStates)
     expect(wires).toEqual(snapshot.wires)
     expect(components).toEqual(snapshot.components)
+    expect(boardPosition).toEqual([1, 0, -2])
     expect(isRunning).toBe(true)
   })
 
@@ -218,11 +249,12 @@ describe('loadSnapshot / reset — DynamoDB round-trip', () => {
     getState().addComponent('led')
     getState().toggleSimulation()
 
-    const { pinStates, wires, components, isRunning } = getState()
+    const { pinStates, wires, components, boardPosition, isRunning } = getState()
     const snapshot: SimulatorSnapshot = {
       pinStates,
       wires,
       components,
+      boardPosition,
       isRunning,
     }
 
@@ -246,6 +278,7 @@ describe('loadSnapshot / reset — DynamoDB round-trip', () => {
     getState().setPinState('arduino-uno:D13', 'HIGH')
     getState().addWire(sampleWire())
     getState().addComponent('led')
+    getState().setBoardPosition([2, 0, 2])
     getState().toggleSimulation()
     getState().selectPin('arduino-uno:A0')
 
@@ -254,6 +287,7 @@ describe('loadSnapshot / reset — DynamoDB round-trip', () => {
     expect(getState().pinStates).toEqual({})
     expect(getState().wires).toEqual([])
     expect(getState().components).toEqual([])
+    expect(getState().boardPosition).toEqual([0, 0, 0])
     expect(getState().isRunning).toBe(false)
     expect(getState().pendingPinId).toBeNull()
 

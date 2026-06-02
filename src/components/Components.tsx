@@ -2,12 +2,15 @@ import { useState } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
+import { useDraggable } from '../three/useDraggable'
 import {
   COMPONENT_LIBRARY,
   componentPinId,
   type ComponentPin,
   type PlacedComponent,
 } from '../domain/components'
+
+/* Pins handle wiring (click); the component body handles moving (drag). */
 
 /** A clickable connection pin shared by every component. */
 function PinMarker({ pinId, pin }: { pinId: string; pin: ComponentPin }) {
@@ -25,6 +28,8 @@ function PinMarker({ pinId, pin }: { pinId: string; pin: ComponentPin }) {
           e.stopPropagation()
           selectPin(pinId)
         }}
+        // Pointer-down on a pin must not start a component drag.
+        onPointerDown={(e: ThreeEvent<PointerEvent>) => e.stopPropagation()}
         onPointerOver={(e: ThreeEvent<PointerEvent>) => {
           e.stopPropagation()
           setHovered(true)
@@ -124,8 +129,24 @@ function ComponentBody({ placed }: { placed: PlacedComponent }) {
 
 function PlacedComponentView({ placed }: { placed: PlacedComponent }) {
   const def = COMPONENT_LIBRARY[placed.type]
+  const setComponentPosition = useSimulatorStore((s) => s.setComponentPosition)
+  const drag = useDraggable(placed.position, (pos) =>
+    setComponentPosition(placed.id, pos),
+  )
+
   return (
     <group position={placed.position}>
+      {/* Invisible drag handle covering the component footprint. */}
+      <mesh
+        position={[0, 0.08, 0]}
+        {...drag}
+        onPointerOver={() => (document.body.style.cursor = 'grab')}
+        onPointerOut={() => (document.body.style.cursor = 'auto')}
+      >
+        <boxGeometry args={[0.7, 0.3, 0.7]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
       <ComponentBody placed={placed} />
       {def.pins.map((pin) => (
         <PinMarker

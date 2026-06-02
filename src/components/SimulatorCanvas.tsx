@@ -13,6 +13,7 @@ import Wires from './Wires'
  */
 export default function SimulatorCanvas() {
   const clearSelection = useSimulatorStore((s) => s.clearSelection)
+  const isDragging = useSimulatorStore((s) => s.isDragging)
 
   return (
     <Canvas
@@ -42,7 +43,8 @@ export default function SimulatorCanvas() {
       />
 
       <Environment preset="city" />
-      <OrbitControls makeDefault enableDamping />
+      {/* Disable camera orbit while dragging an object. */}
+      <OrbitControls makeDefault enableDamping enabled={!isDragging} />
     </Canvas>
   )
 }

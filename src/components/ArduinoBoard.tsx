@@ -3,6 +3,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
 import { createPcbTexture } from '../three/createPcbTexture'
+import { useDraggable } from '../three/useDraggable'
 import {
   ARDUINO_UNO_PINS,
   BOARD_SIZE,
@@ -52,6 +53,8 @@ function Pin({ pin }: { pin: BoardPin }) {
     <group position={pin.position}>
       <mesh
         onClick={handleClick}
+        // Pointer-down on a pin must not start a board drag.
+        onPointerDown={(e) => e.stopPropagation()}
         onPointerOver={handleOver}
         onPointerOut={handleOut}
         scale={active ? 1.4 : 1}
@@ -137,13 +140,16 @@ function BoardFixtures() {
  */
 export default function ArduinoBoard() {
   const isRunning = useSimulatorStore((s) => s.isRunning)
+  const boardPosition = useSimulatorStore((s) => s.boardPosition)
+  const setBoardPosition = useSimulatorStore((s) => s.setBoardPosition)
+  const drag = useDraggable(boardPosition, setBoardPosition)
 
   // Build the silkscreen texture once; free its GPU memory on unmount.
   const pcbTexture = useMemo(() => createPcbTexture(), [])
   useEffect(() => () => pcbTexture.dispose(), [pcbTexture])
 
   return (
-    <group>
+    <group position={boardPosition}>
       {/* PCB body — rests on the grid (y = 0) with its top at BOARD_TOP_Y. */}
       <mesh position={[0, BOARD_H / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[BOARD_W, BOARD_H, BOARD_D]} />
@@ -156,11 +162,12 @@ export default function ArduinoBoard() {
         />
       </mesh>
 
-      {/* Printed silkscreen on the top surface (swap for a photo later). */}
+      {/* Printed silkscreen on the top surface — also the board's drag handle. */}
       <mesh
         position={[0, BOARD_TOP_Y + 0.002, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
+        {...drag}
       >
         <planeGeometry args={[BOARD_W, BOARD_D]} />
         <meshStandardMaterial

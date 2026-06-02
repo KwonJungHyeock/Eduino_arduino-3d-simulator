@@ -83,7 +83,9 @@ export default function Toolbar() {
               key={c.id}
               className="flex items-center justify-between rounded bg-slate-800/70 px-2 py-1 text-xs"
             >
-              <span className="text-slate-300">{c.id}</span>
+              <span className="text-slate-300">
+                {COMPONENT_LIBRARY[c.type].label} #{c.id.split('-').pop()}
+              </span>
               <button
                 onClick={() => removeComponent(c.id)}
                 className="text-slate-400 transition-colors hover:text-red-400"

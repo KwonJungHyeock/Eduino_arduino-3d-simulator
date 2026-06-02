@@ -19,12 +19,19 @@ function midpoint(
 export default function Wires() {
   const wires = useSimulatorStore((s) => s.wires)
   const components = useSimulatorStore((s) => s.components)
+  const boardPosition = useSimulatorStore((s) => s.boardPosition)
 
-  // Merge static board pin positions with the live component pin positions.
-  const positions = useMemo(
-    () => ({ ...PIN_POSITIONS, ...collectComponentPins(components).positions }),
-    [components],
-  )
+  // Board pin positions shift with the (draggable) board; merge with the live
+  // component pin positions.
+  const positions = useMemo(() => {
+    const [bx, by, bz] = boardPosition
+    const board: Record<string, [number, number, number]> = {}
+    for (const id in PIN_POSITIONS) {
+      const [x, y, z] = PIN_POSITIONS[id]
+      board[id] = [x + bx, y + by, z + bz]
+    }
+    return { ...board, ...collectComponentPins(components).positions }
+  }, [components, boardPosition])
 
   return (
     <>

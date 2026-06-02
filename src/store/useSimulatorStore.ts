@@ -50,11 +50,16 @@ export interface Wire {
  *   - export: pick these fields from the store
  *   - import: pass a SimulatorSnapshot to `loadSnapshot`
  */
+/** A position in the workspace, [x, y, z]. */
+export type Vec3 = [number, number, number]
+
 export interface SimulatorSnapshot {
   pinStates: PinStates
   wires: Wire[]
   /** Components placed in the workspace (LEDs, resistors, …). */
   components: PlacedComponent[]
+  /** World position of the Arduino board (draggable). */
+  boardPosition: Vec3
   isRunning: boolean
 }
 
@@ -81,6 +86,12 @@ export interface SimulatorActions {
   addComponent: (type: ComponentType) => void
   /** Remove a component and any wires attached to its pins. */
   removeComponent: (componentId: string) => void
+  /** Move a placed component to a new position (used while dragging). */
+  setComponentPosition: (componentId: string, position: Vec3) => void
+  /** Move the Arduino board to a new position (used while dragging). */
+  setBoardPosition: (position: Vec3) => void
+  /** Flag set while an object is being dragged (disables orbit controls). */
+  setDragging: (dragging: boolean) => void
   /** Replace the entire serializable state (e.g. when loading from DynamoDB). */
   loadSnapshot: (snapshot: SimulatorSnapshot) => void
   /** Reset the workspace back to its initial empty state. */
@@ -98,6 +109,8 @@ export type SimulatorStore = SimulatorSnapshot &
     pendingPinId: string | null
     /** Monotonic counter for unique component ids. Transient. */
     componentSeq: number
+    /** True while an object is being dragged. Transient. */
+    isDragging: boolean
   }
 
 /** Initial, empty workspace state. */
@@ -105,6 +118,7 @@ const initialState: SimulatorSnapshot = {
   pinStates: {},
   wires: [],
   components: [],
+  boardPosition: [0, 0, 0],
   isRunning: false,
 }
 
@@ -134,6 +148,7 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
   ...initialState,
   pendingPinId: null,
   componentSeq: 0,
+  isDragging: false,
 
   toggleSimulation: () =>
     set((state) => ({ isRunning: !state.isRunning })),
@@ -194,14 +209,33 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
         : prev.pendingPinId,
     })),
 
+  setComponentPosition: (componentId, position) =>
+    set((prev) => ({
+      components: prev.components.map((c) =>
+        c.id === componentId ? { ...c, position } : c,
+      ),
+    })),
+
+  setBoardPosition: (position) => set({ boardPosition: position }),
+
+  setDragging: (dragging) => set({ isDragging: dragging }),
+
   // Transient fields are reset on load/reset since they are not persisted.
   loadSnapshot: (snapshot) =>
     set({
       ...snapshot,
       components: snapshot.components ?? [],
+      boardPosition: snapshot.boardPosition ?? [0, 0, 0],
       pendingPinId: null,
+      isDragging: false,
       componentSeq: maxComponentSeq(snapshot.components ?? []),
     }),
 
-  reset: () => set({ ...initialState, pendingPinId: null, componentSeq: 0 }),
+  reset: () =>
+    set({
+      ...initialState,
+      pendingPinId: null,
+      componentSeq: 0,
+      isDragging: false,
+    }),
 }))

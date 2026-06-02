@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
+import { createPcbTexture } from '../three/createPcbTexture'
 import {
   ARDUINO_UNO_PINS,
   BOARD_SIZE,
@@ -125,28 +126,6 @@ function BoardFixtures() {
         <boxGeometry args={[0.16, 0.1, 0.16]} />
         <meshStandardMaterial color="#9aa0aa" metalness={0.6} roughness={0.4} />
       </mesh>
-
-      {/* Silkscreen branding flat on the PCB. */}
-      <Text
-        position={[0.4, BOARD_TOP_Y + 0.002, -0.55]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        fontSize={0.16}
-        color="#eaf6f6"
-        anchorX="center"
-        anchorY="middle"
-      >
-        ARDUINO
-      </Text>
-      <Text
-        position={[1.05, BOARD_TOP_Y + 0.002, 0.55]}
-        rotation={[-Math.PI / 2, 0, 0]}
-        fontSize={0.2}
-        color="#eaf6f6"
-        anchorX="center"
-        anchorY="middle"
-      >
-        UNO
-      </Text>
     </group>
   )
 }
@@ -159,9 +138,13 @@ function BoardFixtures() {
 export default function ArduinoBoard() {
   const isRunning = useSimulatorStore((s) => s.isRunning)
 
+  // Build the silkscreen texture once; free its GPU memory on unmount.
+  const pcbTexture = useMemo(() => createPcbTexture(), [])
+  useEffect(() => () => pcbTexture.dispose(), [pcbTexture])
+
   return (
     <group>
-      {/* PCB — rests on the grid (y = 0) with its top at BOARD_TOP_Y. */}
+      {/* PCB body — rests on the grid (y = 0) with its top at BOARD_TOP_Y. */}
       <mesh position={[0, BOARD_H / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[BOARD_W, BOARD_H, BOARD_D]} />
         <meshStandardMaterial
@@ -170,6 +153,22 @@ export default function ArduinoBoard() {
           emissiveIntensity={isRunning ? 0.35 : 0}
           metalness={0.2}
           roughness={0.65}
+        />
+      </mesh>
+
+      {/* Printed silkscreen on the top surface (swap for a photo later). */}
+      <mesh
+        position={[0, BOARD_TOP_Y + 0.002, 0]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+      >
+        <planeGeometry args={[BOARD_W, BOARD_D]} />
+        <meshStandardMaterial
+          map={pcbTexture}
+          emissive={isRunning ? '#00e5ff' : '#000000'}
+          emissiveIntensity={isRunning ? 0.18 : 0}
+          roughness={0.6}
+          metalness={0.1}
         />
       </mesh>
 

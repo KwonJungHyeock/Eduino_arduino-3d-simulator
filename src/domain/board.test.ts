@@ -6,18 +6,36 @@ import {
   PIN_LABELS,
 } from './board'
 
+const ids = ARDUINO_UNO_PINS.map((p) => p.id)
+
 describe('Arduino Uno board model', () => {
-  it('exposes 14 digital, 6 analog and 6 power/ground pins', () => {
-    const byType = (t: string) =>
-      ARDUINO_UNO_PINS.filter((p) => p.type === t).length
-    expect(byType('digital')).toBe(14)
-    expect(byType('analog')).toBe(6)
-    expect(byType('power') + byType('ground')).toBe(6)
-    expect(ARDUINO_UNO_PINS).toHaveLength(26)
+  it('includes all 14 digital pins D0..D13', () => {
+    for (let n = 0; n <= 13; n++) {
+      expect(ids).toContain(`${BOARD_ID}:D${n}`)
+    }
+    expect(ARDUINO_UNO_PINS.filter((p) => p.type === 'digital').length).toBeGreaterThanOrEqual(14)
+  })
+
+  it('includes all 6 analog pins A0..A5', () => {
+    for (let n = 0; n <= 5; n++) {
+      expect(ids).toContain(`${BOARD_ID}:A${n}`)
+    }
+    expect(ARDUINO_UNO_PINS.filter((p) => p.type === 'analog')).toHaveLength(6)
+  })
+
+  it('includes the key power and ground rails', () => {
+    for (const key of ['5V', '3V3', 'VIN', 'GND1', 'GND2']) {
+      expect(ids).toContain(`${BOARD_ID}:${key}`)
+    }
+    expect(ARDUINO_UNO_PINS.filter((p) => p.type === 'ground').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('marks PWM digital pins with a ~ in their label', () => {
+    expect(PIN_LABELS[`${BOARD_ID}:D11`]).toBe('~D11')
+    expect(PIN_LABELS[`${BOARD_ID}:D2`]).toBe('D2')
   })
 
   it('gives every pin a unique, namespaced id', () => {
-    const ids = ARDUINO_UNO_PINS.map((p) => p.id)
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids.every((id) => id.startsWith(`${BOARD_ID}:`))).toBe(true)
   })

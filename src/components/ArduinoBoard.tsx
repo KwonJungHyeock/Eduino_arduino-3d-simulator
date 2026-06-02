@@ -5,14 +5,19 @@ import { useSimulatorStore } from '../store/useSimulatorStore'
 import {
   ARDUINO_UNO_PINS,
   BOARD_SIZE,
+  BOARD_TOP_Y,
+  HEADER_ROWS,
   type BoardPin,
 } from '../domain/board'
 
-/** Color used to render a pin header based on its current logical state. */
+const [BOARD_W, BOARD_H, BOARD_D] = BOARD_SIZE
+const ARDUINO_TEAL = '#0b8c93'
+
+/** Color of a pin header based on its current logical state. */
 function pinColor(isPending: boolean, isHigh: boolean): string {
   if (isPending) return '#facc15' // amber — awaiting second click
   if (isHigh) return '#ef4444' // red — HIGH
-  return '#cbd5e1' // slate — LOW / unset
+  return '#e7c873' // brass — LOW / unset
 }
 
 function Pin({ pin }: { pin: BoardPin }) {
@@ -37,7 +42,10 @@ function Pin({ pin }: { pin: BoardPin }) {
     document.body.style.cursor = 'auto'
   }
 
+  // Labels sit just outside the board edge so they don't cover the pins.
+  const labelZ = pin.position[2] < 0 ? -0.16 : 0.16
   const color = pinColor(isPending, isHigh)
+  const active = hovered || isPending
 
   return (
     <group position={pin.position}>
@@ -45,22 +53,21 @@ function Pin({ pin }: { pin: BoardPin }) {
         onClick={handleClick}
         onPointerOver={handleOver}
         onPointerOut={handleOut}
-        scale={hovered || isPending ? 1.35 : 1}
+        scale={active ? 1.4 : 1}
       >
-        <cylinderGeometry args={[0.06, 0.06, 0.14, 16]} />
+        <cylinderGeometry args={[0.045, 0.045, 0.12, 16]} />
         <meshStandardMaterial
           color={color}
           emissive={isPending ? '#facc15' : isHigh ? '#7f1d1d' : '#000000'}
-          emissiveIntensity={isPending ? 0.7 : isHigh ? 0.5 : 0}
-          metalness={0.6}
-          roughness={0.4}
+          emissiveIntensity={isPending ? 0.8 : isHigh ? 0.5 : 0}
+          metalness={0.8}
+          roughness={0.3}
         />
       </mesh>
-      {/* Pin label floats just above the header, always facing the camera. */}
       <Text
-        position={[0, 0.22, 0]}
-        fontSize={0.12}
-        color="#e2e8f0"
+        position={[0, 0.02, labelZ]}
+        fontSize={0.07}
+        color={active ? '#fde68a' : '#dbeafe'}
         anchorX="center"
         anchorY="middle"
       >
@@ -70,27 +77,107 @@ function Pin({ pin }: { pin: BoardPin }) {
   )
 }
 
+/** Black plastic header strip beneath a row of pins. */
+function HeaderStrip({ z, length }: { z: number; length: number }) {
+  return (
+    <mesh position={[0, BOARD_TOP_Y + 0.025, z]}>
+      <boxGeometry args={[length, 0.07, 0.22]} />
+      <meshStandardMaterial color="#15181d" roughness={0.7} metalness={0.1} />
+    </mesh>
+  )
+}
+
+/** Static fixtures that make the PCB read as an Arduino Uno. */
+function BoardFixtures() {
+  const leftX = -BOARD_W / 2
+  return (
+    <group>
+      {/* USB-B connector (metal) protruding from the top-left edge. */}
+      <mesh position={[leftX - 0.18, BOARD_TOP_Y + 0.13, -0.55]} castShadow>
+        <boxGeometry args={[0.55, 0.26, 0.7]} />
+        <meshStandardMaterial color="#b8bcc4" metalness={0.9} roughness={0.25} />
+      </mesh>
+
+      {/* Barrel power jack (black) protruding from the bottom-left edge. */}
+      <mesh
+        position={[leftX - 0.12, BOARD_TOP_Y + 0.11, 0.6]}
+        rotation={[0, 0, Math.PI / 2]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.13, 0.13, 0.45, 20]} />
+        <meshStandardMaterial color="#0a0a0c" metalness={0.3} roughness={0.6} />
+      </mesh>
+
+      {/* ATmega328 microcontroller IC. */}
+      <mesh position={[0.35, BOARD_TOP_Y + 0.06, 0.25]} castShadow>
+        <boxGeometry args={[1.0, 0.12, 0.42]} />
+        <meshStandardMaterial color="#0c0c0e" roughness={0.5} />
+      </mesh>
+
+      {/* 16 MHz crystal. */}
+      <mesh position={[-0.5, BOARD_TOP_Y + 0.07, -0.2]} castShadow>
+        <boxGeometry args={[0.28, 0.12, 0.16]} />
+        <meshStandardMaterial color="#c8ccd2" metalness={0.85} roughness={0.3} />
+      </mesh>
+
+      {/* Reset button near the USB connector. */}
+      <mesh position={[-1.15, BOARD_TOP_Y + 0.06, -0.62]} castShadow>
+        <boxGeometry args={[0.16, 0.1, 0.16]} />
+        <meshStandardMaterial color="#9aa0aa" metalness={0.6} roughness={0.4} />
+      </mesh>
+
+      {/* Silkscreen branding flat on the PCB. */}
+      <Text
+        position={[0.4, BOARD_TOP_Y + 0.002, -0.55]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        fontSize={0.16}
+        color="#eaf6f6"
+        anchorX="center"
+        anchorY="middle"
+      >
+        ARDUINO
+      </Text>
+      <Text
+        position={[1.05, BOARD_TOP_Y + 0.002, 0.55]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        fontSize={0.2}
+        color="#eaf6f6"
+        anchorX="center"
+        anchorY="middle"
+      >
+        UNO
+      </Text>
+    </group>
+  )
+}
+
 /**
- * The Arduino Uno board: a base plate plus interactive pin headers.
- *
- * All rendering and interaction happen on the client GPU. The board pulses
- * blue while the simulation is running to reflect the store's `isRunning`.
+ * The Arduino Uno board: a teal PCB with realistic fixtures plus interactive
+ * pin headers. All rendering and interaction happen on the client GPU. The PCB
+ * brightens while the simulation is running to reflect the store's `isRunning`.
  */
 export default function ArduinoBoard() {
   const isRunning = useSimulatorStore((s) => s.isRunning)
 
   return (
     <group>
-      <mesh position={[0, 0, 0]} castShadow receiveShadow>
-        <boxGeometry args={BOARD_SIZE} />
+      {/* PCB — rests on the grid (y = 0) with its top at BOARD_TOP_Y. */}
+      <mesh position={[0, BOARD_H / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[BOARD_W, BOARD_H, BOARD_D]} />
         <meshStandardMaterial
-          color={isRunning ? '#0e7490' : '#0b6e4f'}
-          emissive={isRunning ? '#082f49' : '#000000'}
-          emissiveIntensity={isRunning ? 0.5 : 0}
+          color={ARDUINO_TEAL}
+          emissive={isRunning ? '#00e5ff' : '#000000'}
+          emissiveIntensity={isRunning ? 0.35 : 0}
           metalness={0.2}
-          roughness={0.7}
+          roughness={0.65}
         />
       </mesh>
+
+      {HEADER_ROWS.map((row) => (
+        <HeaderStrip key={row.z} z={row.z} length={row.length} />
+      ))}
+
+      <BoardFixtures />
 
       {ARDUINO_UNO_PINS.map((pin) => (
         <Pin key={pin.id} pin={pin} />

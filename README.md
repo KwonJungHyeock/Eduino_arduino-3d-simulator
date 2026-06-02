@@ -32,9 +32,13 @@ src/
     ArduinoBoard.tsx      # Arduino Uno board + clickable pin headers
     Wires.tsx             # curved cables rendered between connected pins
     Toolbar.tsx           # overlay UI; reads/dispatches store actions
+    Components.tsx        # placed parts (LED, resistor, button, pot) + their pins
   domain/
     board.ts              # static Arduino Uno pin layout + position/label lookups
+    components.ts         # basic component library + placed-component helpers
     wiring.ts             # pure click-to-connect logic (color, dedupe, resolve)
+  three/
+    createPcbTexture.ts   # procedural Uno silkscreen CanvasTexture
   store/
     useSimulatorStore.ts  # zustand store; DynamoDB-serializable snapshot
   App.tsx                 # app shell (canvas + overlays)

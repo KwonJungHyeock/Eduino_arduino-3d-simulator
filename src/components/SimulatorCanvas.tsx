@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, Environment } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
 import ArduinoBoard from './ArduinoBoard'
+import Components from './Components'
 import Wires from './Wires'
 
 /**
@@ -29,6 +30,7 @@ export default function SimulatorCanvas() {
       />
 
       <ArduinoBoard />
+      <Components />
       <Wires />
 
       <Grid

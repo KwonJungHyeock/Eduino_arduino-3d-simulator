@@ -1,5 +1,10 @@
 import { create } from 'zustand'
 import { resolvePinClick } from '../domain/wiring'
+import {
+  COMPONENT_LIBRARY,
+  type ComponentType,
+  type PlacedComponent,
+} from '../domain/components'
 
 /**
  * Core domain types for the 3D Arduino / AIoT sensor simulator.
@@ -48,6 +53,8 @@ export interface Wire {
 export interface SimulatorSnapshot {
   pinStates: PinStates
   wires: Wire[]
+  /** Components placed in the workspace (LEDs, resistors, …). */
+  components: PlacedComponent[]
   isRunning: boolean
 }
 
@@ -70,6 +77,10 @@ export interface SimulatorActions {
   selectPin: (pinId: string) => void
   /** Cancel any in-progress pin selection. */
   clearSelection: () => void
+  /** Add a component of the given type at an auto-assigned position. */
+  addComponent: (type: ComponentType) => void
+  /** Remove a component and any wires attached to its pins. */
+  removeComponent: (componentId: string) => void
   /** Replace the entire serializable state (e.g. when loading from DynamoDB). */
   loadSnapshot: (snapshot: SimulatorSnapshot) => void
   /** Reset the workspace back to its initial empty state. */
@@ -85,13 +96,32 @@ export type SimulatorStore = SimulatorSnapshot &
   SimulatorActions & {
     /** Pin awaiting a second click during wiring, or null. Transient. */
     pendingPinId: string | null
+    /** Monotonic counter for unique component ids. Transient. */
+    componentSeq: number
   }
 
 /** Initial, empty workspace state. */
 const initialState: SimulatorSnapshot = {
   pinStates: {},
   wires: [],
+  components: [],
   isRunning: false,
+}
+
+/** Lay out newly added components in a tidy row in front of the board. */
+function nextComponentPosition(index: number): [number, number, number] {
+  const perRow = 5
+  const col = index % perRow
+  const row = Math.floor(index / perRow)
+  return [-1.6 + col * 0.8, 0.12, 2.1 + row * 0.8]
+}
+
+/** Highest numeric suffix already used across component ids, for seq recovery. */
+function maxComponentSeq(components: PlacedComponent[]): number {
+  return components.reduce((max, c) => {
+    const n = Number(c.id.split('-').pop())
+    return Number.isFinite(n) ? Math.max(max, n) : max
+  }, 0)
 }
 
 /**
@@ -103,6 +133,7 @@ const initialState: SimulatorSnapshot = {
 export const useSimulatorStore = create<SimulatorStore>((set) => ({
   ...initialState,
   pendingPinId: null,
+  componentSeq: 0,
 
   toggleSimulation: () =>
     set((state) => ({ isRunning: !state.isRunning })),
@@ -133,8 +164,44 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
 
   clearSelection: () => set({ pendingPinId: null }),
 
-  // Transient `pendingPinId` is reset on load/reset since it is not persisted.
-  loadSnapshot: (snapshot) => set({ ...snapshot, pendingPinId: null }),
+  addComponent: (type) =>
+    set((prev) => {
+      // Guard against an invalid type so ids and rendering stay consistent.
+      if (!COMPONENT_LIBRARY[type]) return prev
+      const seq = prev.componentSeq + 1
+      const placed: PlacedComponent = {
+        id: `${type}-${seq}`,
+        type,
+        position: nextComponentPosition(prev.components.length),
+      }
+      return {
+        components: [...prev.components, placed],
+        componentSeq: seq,
+      }
+    }),
 
-  reset: () => set({ ...initialState, pendingPinId: null }),
+  removeComponent: (componentId) =>
+    set((prev) => ({
+      components: prev.components.filter((c) => c.id !== componentId),
+      // Drop wires whose endpoints belong to the removed component.
+      wires: prev.wires.filter(
+        (w) =>
+          !w.startPinId.startsWith(`${componentId}:`) &&
+          !w.endPinId.startsWith(`${componentId}:`),
+      ),
+      pendingPinId: prev.pendingPinId?.startsWith(`${componentId}:`)
+        ? null
+        : prev.pendingPinId,
+    })),
+
+  // Transient fields are reset on load/reset since they are not persisted.
+  loadSnapshot: (snapshot) =>
+    set({
+      ...snapshot,
+      components: snapshot.components ?? [],
+      pendingPinId: null,
+      componentSeq: maxComponentSeq(snapshot.components ?? []),
+    }),
+
+  reset: () => set({ ...initialState, pendingPinId: null, componentSeq: 0 }),
 }))

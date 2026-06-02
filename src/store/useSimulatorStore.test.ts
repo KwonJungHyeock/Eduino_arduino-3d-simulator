@@ -23,9 +23,10 @@ beforeEach(() => {
 
 describe('useSimulatorStore — initial state', () => {
   it('starts empty and idle', () => {
-    const { pinStates, wires, isRunning } = getState()
+    const { pinStates, wires, components, isRunning } = getState()
     expect(pinStates).toEqual({})
     expect(wires).toEqual([])
+    expect(components).toEqual([])
     expect(isRunning).toBe(false)
   })
 })
@@ -146,27 +147,84 @@ describe('clearWires / clearSelection', () => {
   })
 })
 
+describe('addComponent / removeComponent', () => {
+  it('adds a component with a unique sequential id', () => {
+    getState().addComponent('led')
+    getState().addComponent('led')
+    const ids = getState().components.map((c) => c.id)
+    expect(ids).toEqual(['led-1', 'led-2'])
+    expect(new Set(ids).size).toBe(2)
+  })
+
+  it('lets different component types coexist', () => {
+    getState().addComponent('led')
+    getState().addComponent('resistor')
+    getState().addComponent('potentiometer')
+    expect(getState().components.map((c) => c.type)).toEqual([
+      'led',
+      'resistor',
+      'potentiometer',
+    ])
+  })
+
+  it('removes a component and any wires attached to its pins', () => {
+    getState().addComponent('led') // led-1
+    getState().addWire({
+      id: 'w1',
+      startPinId: 'arduino-uno:D13',
+      endPinId: 'led-1:anode',
+      color: '#fff',
+    })
+    getState().addWire({
+      id: 'w2',
+      startPinId: 'arduino-uno:D12',
+      endPinId: 'arduino-uno:GND_D',
+      color: '#fff',
+    })
+
+    getState().removeComponent('led-1')
+
+    expect(getState().components).toEqual([])
+    // Only the wire touching the removed component is dropped.
+    expect(getState().wires.map((w) => w.id)).toEqual(['w2'])
+  })
+
+  it('ignores an unknown component type', () => {
+    // @ts-expect-error — intentionally passing an invalid type
+    getState().addComponent('not-a-real-part')
+    expect(getState().components).toEqual([])
+  })
+})
+
 describe('loadSnapshot / reset — DynamoDB round-trip', () => {
   it('hydrates the full state from a snapshot', () => {
     const snapshot: SimulatorSnapshot = {
       pinStates: { 'arduino-uno:D13': 'HIGH' },
       wires: [sampleWire()],
+      components: [{ id: 'led-1', type: 'led', position: [0, 0.12, 2] }],
       isRunning: true,
     }
     getState().loadSnapshot(snapshot)
-    const { pinStates, wires, isRunning } = getState()
+    const { pinStates, wires, components, isRunning } = getState()
     expect(pinStates).toEqual(snapshot.pinStates)
     expect(wires).toEqual(snapshot.wires)
+    expect(components).toEqual(snapshot.components)
     expect(isRunning).toBe(true)
   })
 
   it('survives a JSON serialize/deserialize cycle (DynamoDB-compatible)', () => {
     getState().setPinState('arduino-uno:D13', 'HIGH')
     getState().addWire(sampleWire())
+    getState().addComponent('led')
     getState().toggleSimulation()
 
-    const { pinStates, wires, isRunning } = getState()
-    const snapshot: SimulatorSnapshot = { pinStates, wires, isRunning }
+    const { pinStates, wires, components, isRunning } = getState()
+    const snapshot: SimulatorSnapshot = {
+      pinStates,
+      wires,
+      components,
+      isRunning,
+    }
 
     // Simulate persisting to / reading back from DynamoDB.
     const roundTripped: SimulatorSnapshot = JSON.parse(
@@ -175,16 +233,19 @@ describe('loadSnapshot / reset — DynamoDB round-trip', () => {
 
     getState().reset()
     expect(getState().wires).toEqual([])
+    expect(getState().components).toEqual([])
 
     getState().loadSnapshot(roundTripped)
     expect(getState().pinStates).toEqual(snapshot.pinStates)
     expect(getState().wires).toEqual(snapshot.wires)
+    expect(getState().components).toEqual(snapshot.components)
     expect(getState().isRunning).toBe(snapshot.isRunning)
   })
 
   it('reset returns the store to its empty initial state', () => {
     getState().setPinState('arduino-uno:D13', 'HIGH')
     getState().addWire(sampleWire())
+    getState().addComponent('led')
     getState().toggleSimulation()
     getState().selectPin('arduino-uno:A0')
 
@@ -192,7 +253,12 @@ describe('loadSnapshot / reset — DynamoDB round-trip', () => {
 
     expect(getState().pinStates).toEqual({})
     expect(getState().wires).toEqual([])
+    expect(getState().components).toEqual([])
     expect(getState().isRunning).toBe(false)
     expect(getState().pendingPinId).toBeNull()
+
+    // The id sequence resets too: the next component is led-1 again.
+    getState().addComponent('led')
+    expect(getState().components[0].id).toBe('led-1')
   })
 })

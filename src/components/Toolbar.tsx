@@ -103,12 +103,11 @@ export default function Toolbar() {
         <p className="font-medium text-slate-200">Wiring</p>
         {pendingLabel ? (
           <p>
-            Connecting from{' '}
             <span className="font-semibold text-amber-400">{pendingLabel}</span>
-            … click another pin.
+            에서 다른 핀으로 연결하세요.
           </p>
         ) : (
-          <p>Click a pin to start a connection.</p>
+          <p>핀을 잡고 다른 핀으로 <b>드래그</b>해서 연결! (탭-탭도 가능)</p>
         )}
       </div>
 

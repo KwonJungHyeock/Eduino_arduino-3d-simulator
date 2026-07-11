@@ -128,6 +128,26 @@ describe('selectPin — click-to-connect wiring', () => {
   })
 })
 
+describe('connectPins — drag-to-connect', () => {
+  it('creates a wire directly between two pins', () => {
+    getState().connectPins('arduino-uno:D13', 'led-1:anode')
+    expect(getState().wires).toHaveLength(1)
+    expect(getState().wires[0]).toMatchObject({
+      startPinId: 'arduino-uno:D13',
+      endPinId: 'led-1:anode',
+    })
+    expect(getState().pendingPinId).toBeNull()
+  })
+
+  it('ignores a self-connection and duplicates', () => {
+    getState().connectPins('arduino-uno:D13', 'arduino-uno:D13')
+    expect(getState().wires).toHaveLength(0)
+    getState().connectPins('arduino-uno:D13', 'arduino-uno:GND_D')
+    getState().connectPins('arduino-uno:GND_D', 'arduino-uno:D13') // reversed dup
+    expect(getState().wires).toHaveLength(1)
+  })
+})
+
 describe('clearWires / clearSelection', () => {
   it('clearWires removes all wires and any pending selection', () => {
     getState().selectPin('arduino-uno:D13')

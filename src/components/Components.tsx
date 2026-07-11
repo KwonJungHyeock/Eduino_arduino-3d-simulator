@@ -1,9 +1,9 @@
-import { useState } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
 import { useDraggable } from '../three/useDraggable'
 import { useSimulation } from '../hooks/useSimulation'
+import { usePinConnect } from '../hooks/usePinConnect'
 import {
   COMPONENT_LIBRARY,
   componentPinId,
@@ -11,36 +11,22 @@ import {
   type PlacedComponent,
 } from '../domain/components'
 
-/* Pins handle wiring (click); the component body handles moving (drag). */
+/* Pins handle wiring (drag or tap); the component body handles moving (drag). */
 
-/** A clickable connection pin shared by every component. */
+/** A connectable component pin — drag from it, or tap, to wire. */
 function PinMarker({ pinId, pin }: { pinId: string; pin: ComponentPin }) {
-  const [hovered, setHovered] = useState(false)
   const isPending = useSimulatorStore((s) => s.pendingPinId === pinId)
-  const selectPin = useSimulatorStore((s) => s.selectPin)
-
+  const { hovered, handlers } = usePinConnect(pinId)
   const active = hovered || isPending
 
   return (
     <group position={pin.offset}>
-      <mesh
-        scale={active ? 1.4 : 1}
-        onClick={(e: ThreeEvent<MouseEvent>) => {
-          e.stopPropagation()
-          selectPin(pinId)
-        }}
-        // Pointer-down on a pin must not start a component drag.
-        onPointerDown={(e: ThreeEvent<PointerEvent>) => e.stopPropagation()}
-        onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation()
-          setHovered(true)
-          document.body.style.cursor = 'pointer'
-        }}
-        onPointerOut={() => {
-          setHovered(false)
-          document.body.style.cursor = 'auto'
-        }}
-      >
+      {/* Enlarged invisible hit area for easy grabbing. */}
+      <mesh {...handlers}>
+        <sphereGeometry args={[0.11, 12, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+      <mesh scale={active ? 1.4 : 1}>
         <cylinderGeometry args={[0.04, 0.04, 0.1, 14]} />
         <meshStandardMaterial
           color={isPending ? '#facc15' : '#e7c873'}

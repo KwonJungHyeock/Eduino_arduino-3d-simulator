@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { resolvePinClick } from '../domain/wiring'
+import { resolvePinClick, wireExists, pickWireColor } from '../domain/wiring'
 import {
   COMPONENT_LIBRARY,
   type ComponentType,
@@ -82,6 +82,10 @@ export interface SimulatorActions {
   selectPin: (pinId: string) => void
   /** Cancel any in-progress pin selection. */
   clearSelection: () => void
+  /** Begin a drag-to-connect gesture from a pin (or clear with null). */
+  setDragSource: (pinId: string | null) => void
+  /** Directly connect two pins with a wire (used by drag-to-connect). */
+  connectPins: (a: string, b: string) => void
   /** Add a component of the given type at an auto-assigned position. */
   addComponent: (type: ComponentType) => void
   /** Remove a component and any wires attached to its pins. */
@@ -117,6 +121,8 @@ export type SimulatorStore = SimulatorSnapshot &
     isDragging: boolean
     /** Ids of pushbuttons currently pressed (closed). Transient. */
     pressedButtons: string[]
+    /** Pin a drag-to-connect gesture started from, or null. Transient. */
+    dragSource: string | null
   }
 
 /** Initial, empty workspace state. */
@@ -156,6 +162,7 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
   componentSeq: 0,
   isDragging: false,
   pressedButtons: [],
+  dragSource: null,
 
   toggleSimulation: () =>
     set((state) => ({ isRunning: !state.isRunning })),
@@ -184,7 +191,28 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
       }
     }),
 
-  clearSelection: () => set({ pendingPinId: null }),
+  clearSelection: () => set({ pendingPinId: null, dragSource: null }),
+
+  setDragSource: (pinId) => set({ dragSource: pinId }),
+
+  connectPins: (a, b) =>
+    set((prev) => {
+      if (a === b || wireExists(prev.wires, a, b)) {
+        return { pendingPinId: null }
+      }
+      return {
+        wires: [
+          ...prev.wires,
+          {
+            id: `${a}__${b}`,
+            startPinId: a,
+            endPinId: b,
+            color: pickWireColor(prev.wires.length),
+          },
+        ],
+        pendingPinId: null,
+      }
+    }),
 
   addComponent: (type) =>
     set((prev) => {
@@ -233,6 +261,7 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
       pendingPinId: null,
       isRunning: false,
       pressedButtons: [],
+      dragSource: null,
       componentSeq: maxComponentSeq(components),
     }),
 
@@ -254,6 +283,7 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
       pendingPinId: null,
       isDragging: false,
       pressedButtons: [],
+      dragSource: null,
       componentSeq: maxComponentSeq(snapshot.components ?? []),
     }),
 
@@ -264,5 +294,6 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
       componentSeq: 0,
       isDragging: false,
       pressedButtons: [],
+      dragSource: null,
     }),
 }))

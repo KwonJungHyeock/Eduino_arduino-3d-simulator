@@ -39,7 +39,7 @@ describe('<Toolbar />', () => {
     useSimulatorStore.getState().selectPin('arduino-uno:D13')
     render(<Toolbar />)
     expect(screen.getByText('D13')).toBeInTheDocument()
-    expect(screen.getByText(/click another pin/i)).toBeInTheDocument()
+    expect(screen.getByText(/다른 핀으로 연결/)).toBeInTheDocument()
   })
 
   it('clears all wires via the Clear Wires button', async () => {

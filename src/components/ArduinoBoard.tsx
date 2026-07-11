@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { ThreeEvent } from '@react-three/fiber'
+import { useEffect, useMemo } from 'react'
 import { Text } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
 import { useSimulation } from '../hooks/useSimulation'
+import { usePinConnect } from '../hooks/usePinConnect'
 import { createPcbTexture } from '../three/createPcbTexture'
 import { useDraggable } from '../three/useDraggable'
 import {
@@ -24,27 +24,10 @@ function pinColor(isPending: boolean, isHigh: boolean): string {
 }
 
 function Pin({ pin, simHigh }: { pin: BoardPin; simHigh: boolean }) {
-  const [hovered, setHovered] = useState(false)
   const isPending = useSimulatorStore((s) => s.pendingPinId === pin.id)
   const drivenHigh = useSimulatorStore((s) => s.pinStates[pin.id] === 'HIGH')
   const isHigh = drivenHigh || simHigh
-  const selectPin = useSimulatorStore((s) => s.selectPin)
-
-  const handleClick = (e: ThreeEvent<MouseEvent>) => {
-    e.stopPropagation()
-    selectPin(pin.id)
-  }
-
-  const handleOver = (e: ThreeEvent<PointerEvent>) => {
-    e.stopPropagation()
-    setHovered(true)
-    document.body.style.cursor = 'pointer'
-  }
-
-  const handleOut = () => {
-    setHovered(false)
-    document.body.style.cursor = 'auto'
-  }
+  const { hovered, handlers } = usePinConnect(pin.id)
 
   // Labels sit just outside the board edge so they don't cover the pins.
   const labelZ = pin.position[2] < 0 ? -0.16 : 0.16
@@ -53,14 +36,12 @@ function Pin({ pin, simHigh }: { pin: BoardPin; simHigh: boolean }) {
 
   return (
     <group position={pin.position}>
-      <mesh
-        onClick={handleClick}
-        // Pointer-down on a pin must not start a board drag.
-        onPointerDown={(e) => e.stopPropagation()}
-        onPointerOver={handleOver}
-        onPointerOut={handleOut}
-        scale={active ? 1.4 : 1}
-      >
+      {/* Enlarged invisible hit area so small pins are easy to grab. */}
+      <mesh {...handlers}>
+        <sphereGeometry args={[0.12, 12, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+      <mesh scale={active ? 1.4 : 1}>
         <cylinderGeometry args={[0.045, 0.045, 0.12, 16]} />
         <meshStandardMaterial
           color={color}

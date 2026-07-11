@@ -1,8 +1,6 @@
-import { useMemo } from 'react'
 import { QuadraticBezierLine } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
-import { PIN_POSITIONS } from '../domain/board'
-import { collectComponentPins } from '../domain/components'
+import { usePinPositions } from '../hooks/usePinPositions'
 
 /** Lift the wire's apex above the two endpoints so it arcs clearly. */
 function midpoint(
@@ -18,20 +16,7 @@ function midpoint(
  */
 export default function Wires() {
   const wires = useSimulatorStore((s) => s.wires)
-  const components = useSimulatorStore((s) => s.components)
-  const boardPosition = useSimulatorStore((s) => s.boardPosition)
-
-  // Board pin positions shift with the (draggable) board; merge with the live
-  // component pin positions.
-  const positions = useMemo(() => {
-    const [bx, by, bz] = boardPosition
-    const board: Record<string, [number, number, number]> = {}
-    for (const id in PIN_POSITIONS) {
-      const [x, y, z] = PIN_POSITIONS[id]
-      board[id] = [x + bx, y + by, z + bz]
-    }
-    return { ...board, ...collectComponentPins(components).positions }
-  }, [components, boardPosition])
+  const positions = usePinPositions()
 
   return (
     <>

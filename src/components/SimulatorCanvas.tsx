@@ -4,6 +4,7 @@ import { useSimulatorStore } from '../store/useSimulatorStore'
 import ArduinoBoard from './ArduinoBoard'
 import Components from './Components'
 import Wires from './Wires'
+import WireDragLayer from './WireDragLayer'
 
 /**
  * The 3D workspace. All heavy rendering runs on the client GPU via Three.js,
@@ -14,6 +15,7 @@ import Wires from './Wires'
 export default function SimulatorCanvas() {
   const clearSelection = useSimulatorStore((s) => s.clearSelection)
   const isDragging = useSimulatorStore((s) => s.isDragging)
+  const dragSource = useSimulatorStore((s) => s.dragSource)
 
   return (
     <Canvas
@@ -33,6 +35,7 @@ export default function SimulatorCanvas() {
       <ArduinoBoard />
       <Components />
       <Wires />
+      <WireDragLayer />
 
       <Grid
         args={[20, 20]}
@@ -43,8 +46,12 @@ export default function SimulatorCanvas() {
       />
 
       <Environment preset="city" />
-      {/* Disable camera orbit while dragging an object. */}
-      <OrbitControls makeDefault enableDamping enabled={!isDragging} />
+      {/* Disable camera orbit while dragging an object or pulling a wire. */}
+      <OrbitControls
+        makeDefault
+        enableDamping
+        enabled={!isDragging && !dragSource}
+      />
     </Canvas>
   )
 }

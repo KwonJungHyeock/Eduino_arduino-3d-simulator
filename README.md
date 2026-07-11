@@ -33,10 +33,15 @@ src/
     Wires.tsx             # curved cables rendered between connected pins
     Toolbar.tsx           # overlay UI; reads/dispatches store actions
     Components.tsx        # placed parts (LED, resistor, button, pot) + their pins
+    LessonPanel.tsx       # guided step-by-step lessons (wire it → run it)
+  hooks/
+    useSimulation.ts      # derives the live circuit result from the store
   domain/
     board.ts              # static Arduino Uno pin layout + position/label lookups
     components.ts         # basic component library + placed-component helpers
     wiring.ts             # pure click-to-connect logic (color, dedupe, resolve)
+    simulation.ts         # Tinkercad-style net/connectivity circuit evaluator
+    lessons.ts            # guided-lesson model + sample "LED 켜기" lesson
   three/
     createPcbTexture.ts   # procedural Uno silkscreen CanvasTexture
   store/
@@ -60,6 +65,21 @@ next color from a rotating palette. The pure decision logic lives in
 it, keeping the 3D scene a pure function of store state. The transient
 `pendingPinId` is deliberately excluded from `SimulatorSnapshot`, so it is never
 persisted to DynamoDB.
+
+## Simulation & guided lessons
+
+`domain/simulation.ts` is a small, Tinkercad-style connectivity simulator: wires
+merge pins into electrical **nets**, current flows through passthrough parts
+(resistors), and an LED lights when its anode can reach a HIGH source (5V, or a
+HIGH-driven board pin) and its cathode reaches ground. It is pure and unit-tested;
+`hooks/useSimulation.ts` runs it against the live store while the simulation is on.
+
+`domain/lessons.ts` models the LMS **버튼형 실습** flow: a lesson pre-places its
+components, then steps the learner through `info → wiring → simulate`. On a
+`wiring` step the learner makes the real connections in 3D and the panel checks
+them live; the closing `simulate` step runs the circuit and confirms the LED lit.
+All lesson content and checks are pure data — ready to author and store in
+DynamoDB without a backend.
 
 ### State model (`useSimulatorStore`)
 

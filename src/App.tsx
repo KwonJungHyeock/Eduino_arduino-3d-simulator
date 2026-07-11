@@ -1,5 +1,6 @@
 import SimulatorCanvas from './components/SimulatorCanvas'
 import Toolbar from './components/Toolbar'
+import LessonPanel from './components/LessonPanel'
 
 /**
  * Application shell.
@@ -12,6 +13,7 @@ function App() {
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-slate-950">
       <Toolbar />
+      <LessonPanel />
       <SimulatorCanvas />
     </div>
   )

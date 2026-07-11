@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ThreeEvent } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
+import { useSimulation } from '../hooks/useSimulation'
 import { createPcbTexture } from '../three/createPcbTexture'
 import { useDraggable } from '../three/useDraggable'
 import {
@@ -22,10 +23,11 @@ function pinColor(isPending: boolean, isHigh: boolean): string {
   return '#e7c873' // brass — LOW / unset
 }
 
-function Pin({ pin }: { pin: BoardPin }) {
+function Pin({ pin, simHigh }: { pin: BoardPin; simHigh: boolean }) {
   const [hovered, setHovered] = useState(false)
   const isPending = useSimulatorStore((s) => s.pendingPinId === pin.id)
-  const isHigh = useSimulatorStore((s) => s.pinStates[pin.id] === 'HIGH')
+  const drivenHigh = useSimulatorStore((s) => s.pinStates[pin.id] === 'HIGH')
+  const isHigh = drivenHigh || simHigh
   const selectPin = useSimulatorStore((s) => s.selectPin)
 
   const handleClick = (e: ThreeEvent<MouseEvent>) => {
@@ -143,6 +145,8 @@ export default function ArduinoBoard() {
   const boardPosition = useSimulatorStore((s) => s.boardPosition)
   const setBoardPosition = useSimulatorStore((s) => s.setBoardPosition)
   const drag = useDraggable(boardPosition, setBoardPosition)
+  const { highPins } = useSimulation()
+  const highSet = useMemo(() => new Set(highPins), [highPins])
 
   // Build the silkscreen texture once; free its GPU memory on unmount.
   const pcbTexture = useMemo(() => createPcbTexture(), [])
@@ -186,7 +190,7 @@ export default function ArduinoBoard() {
       <BoardFixtures />
 
       {ARDUINO_UNO_PINS.map((pin) => (
-        <Pin key={pin.id} pin={pin} />
+        <Pin key={pin.id} pin={pin} simHigh={highSet.has(pin.id)} />
       ))}
     </group>
   )

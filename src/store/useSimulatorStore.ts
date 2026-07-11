@@ -90,6 +90,8 @@ export interface SimulatorActions {
   setComponentPosition: (componentId: string, position: Vec3) => void
   /** Move the Arduino board to a new position (used while dragging). */
   setBoardPosition: (position: Vec3) => void
+  /** Load a guided lesson's components, clearing prior wiring. */
+  startLesson: (components: PlacedComponent[]) => void
   /** Flag set while an object is being dragged (disables orbit controls). */
   setDragging: (dragging: boolean) => void
   /** Replace the entire serializable state (e.g. when loading from DynamoDB). */
@@ -217,6 +219,16 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
     })),
 
   setBoardPosition: (position) => set({ boardPosition: position }),
+
+  startLesson: (components) =>
+    set({
+      components,
+      wires: [],
+      pinStates: {},
+      pendingPinId: null,
+      isRunning: false,
+      componentSeq: maxComponentSeq(components),
+    }),
 
   setDragging: (dragging) => set({ isDragging: dragging }),
 

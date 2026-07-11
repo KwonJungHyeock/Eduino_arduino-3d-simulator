@@ -3,6 +3,7 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
 import { useDraggable } from '../three/useDraggable'
+import { useSimulation } from '../hooks/useSimulation'
 import {
   COMPONENT_LIBRARY,
   componentPinId,
@@ -57,8 +58,7 @@ function PinMarker({ pinId, pin }: { pinId: string; pin: ComponentPin }) {
 }
 
 /** Render the physical body of a component by its type. */
-function ComponentBody({ placed }: { placed: PlacedComponent }) {
-  const isRunning = useSimulatorStore((s) => s.isRunning)
+function ComponentBody({ placed, lit }: { placed: PlacedComponent; lit: boolean }) {
   const def = COMPONENT_LIBRARY[placed.type]
 
   switch (placed.type) {
@@ -74,11 +74,16 @@ function ComponentBody({ placed }: { placed: PlacedComponent }) {
             <meshStandardMaterial
               color={def.color}
               emissive={def.color}
-              emissiveIntensity={isRunning ? 0.9 : 0.15}
+              emissiveIntensity={lit ? 1.6 : 0.12}
+              toneMapped={false}
               transparent
               opacity={0.85}
             />
           </mesh>
+          {/* Glow halo when the LED is lit. */}
+          {lit && (
+            <pointLight position={[0, 0.2, 0]} color={def.color} intensity={2} distance={1.5} />
+          )}
         </group>
       )
     case 'resistor':
@@ -127,7 +132,13 @@ function ComponentBody({ placed }: { placed: PlacedComponent }) {
   }
 }
 
-function PlacedComponentView({ placed }: { placed: PlacedComponent }) {
+function PlacedComponentView({
+  placed,
+  lit,
+}: {
+  placed: PlacedComponent
+  lit: boolean
+}) {
   const def = COMPONENT_LIBRARY[placed.type]
   const setComponentPosition = useSimulatorStore((s) => s.setComponentPosition)
   const drag = useDraggable(placed.position, (pos) =>
@@ -147,7 +158,7 @@ function PlacedComponentView({ placed }: { placed: PlacedComponent }) {
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
 
-      <ComponentBody placed={placed} />
+      <ComponentBody placed={placed} lit={lit} />
       {def.pins.map((pin) => (
         <PinMarker
           key={pin.name}
@@ -162,10 +173,15 @@ function PlacedComponentView({ placed }: { placed: PlacedComponent }) {
 /** Renders every component placed in the workspace. */
 export default function Components() {
   const components = useSimulatorStore((s) => s.components)
+  const { ledOn } = useSimulation()
   return (
     <>
       {components.map((placed) => (
-        <PlacedComponentView key={placed.id} placed={placed} />
+        <PlacedComponentView
+          key={placed.id}
+          placed={placed}
+          lit={ledOn[placed.id] ?? false}
+        />
       ))}
     </>
   )

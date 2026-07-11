@@ -94,6 +94,8 @@ export interface SimulatorActions {
   startLesson: (components: PlacedComponent[]) => void
   /** Flag set while an object is being dragged (disables orbit controls). */
   setDragging: (dragging: boolean) => void
+  /** Toggle a pushbutton's pressed (closed) state during simulation. */
+  toggleButton: (componentId: string) => void
   /** Replace the entire serializable state (e.g. when loading from DynamoDB). */
   loadSnapshot: (snapshot: SimulatorSnapshot) => void
   /** Reset the workspace back to its initial empty state. */
@@ -113,6 +115,8 @@ export type SimulatorStore = SimulatorSnapshot &
     componentSeq: number
     /** True while an object is being dragged. Transient. */
     isDragging: boolean
+    /** Ids of pushbuttons currently pressed (closed). Transient. */
+    pressedButtons: string[]
   }
 
 /** Initial, empty workspace state. */
@@ -151,6 +155,7 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
   pendingPinId: null,
   componentSeq: 0,
   isDragging: false,
+  pressedButtons: [],
 
   toggleSimulation: () =>
     set((state) => ({ isRunning: !state.isRunning })),
@@ -227,10 +232,18 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
       pinStates: {},
       pendingPinId: null,
       isRunning: false,
+      pressedButtons: [],
       componentSeq: maxComponentSeq(components),
     }),
 
   setDragging: (dragging) => set({ isDragging: dragging }),
+
+  toggleButton: (componentId) =>
+    set((prev) => ({
+      pressedButtons: prev.pressedButtons.includes(componentId)
+        ? prev.pressedButtons.filter((id) => id !== componentId)
+        : [...prev.pressedButtons, componentId],
+    })),
 
   // Transient fields are reset on load/reset since they are not persisted.
   loadSnapshot: (snapshot) =>
@@ -240,6 +253,7 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
       boardPosition: snapshot.boardPosition ?? [0, 0, 0],
       pendingPinId: null,
       isDragging: false,
+      pressedButtons: [],
       componentSeq: maxComponentSeq(snapshot.components ?? []),
     }),
 
@@ -249,5 +263,6 @@ export const useSimulatorStore = create<SimulatorStore>((set) => ({
       pendingPinId: null,
       componentSeq: 0,
       isDragging: false,
+      pressedButtons: [],
     }),
 }))

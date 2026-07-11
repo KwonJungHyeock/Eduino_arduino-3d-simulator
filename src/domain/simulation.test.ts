@@ -21,6 +21,11 @@ const resistor = (id: string): PlacedComponent => ({
   type: 'resistor',
   position: [0, 0.12, 2],
 })
+const button = (id: string): PlacedComponent => ({
+  id,
+  type: 'pushbutton',
+  position: [0, 0.12, 2],
+})
 
 describe('simulate — LED lighting', () => {
   it('lights an LED wired 5V → resistor → LED → GND', () => {
@@ -81,6 +86,32 @@ describe('simulate — LED lighting', () => {
       wire('d1:cathode', 'arduino-uno:GND1'),
     ]
     expect(simulate({ wires, components }).ledOn['d1']).toBe(false)
+  })
+})
+
+describe('simulate — pushbutton', () => {
+  it('blocks current until pressed, then completes the circuit', () => {
+    const components = [button('b1'), led('d1')]
+    const wires = [
+      wire('arduino-uno:5V', 'b1:1a'),
+      wire('b1:2a', 'd1:anode'),
+      wire('d1:cathode', 'arduino-uno:GND1'),
+    ]
+    expect(simulate({ wires, components }).ledOn['d1']).toBe(false)
+    expect(simulate({ wires, components, pressed: ['b1'] }).ledOn['d1']).toBe(
+      true,
+    )
+  })
+
+  it('conducts within a side even when open (1a↔1b)', () => {
+    const components = [button('b1'), led('d1')]
+    const wires = [
+      wire('arduino-uno:5V', 'b1:1a'),
+      wire('b1:1b', 'd1:anode'), // same side as 5V
+      wire('d1:cathode', 'arduino-uno:GND1'),
+    ]
+    // Same side is always connected, so this lights without pressing.
+    expect(simulate({ wires, components }).ledOn['d1']).toBe(true)
   })
 })
 

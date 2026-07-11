@@ -102,18 +102,8 @@ function ComponentBody({ placed, lit }: { placed: PlacedComponent; lit: boolean 
         </group>
       )
     case 'pushbutton':
-      return (
-        <group>
-          <mesh position={[0, 0.06, 0]} castShadow>
-            <boxGeometry args={[0.34, 0.12, 0.34]} />
-            <meshStandardMaterial color={def.color} roughness={0.6} />
-          </mesh>
-          <mesh position={[0, 0.16, 0]} castShadow>
-            <cylinderGeometry args={[0.09, 0.09, 0.06, 18]} />
-            <meshStandardMaterial color="#e2e8f0" roughness={0.4} />
-          </mesh>
-        </group>
-      )
+      return <PushbuttonBody placed={placed} />
+
     case 'potentiometer':
       return (
         <group>
@@ -130,6 +120,44 @@ function ComponentBody({ placed, lit }: { placed: PlacedComponent; lit: boolean 
     default:
       return null
   }
+}
+
+/** Interactive tactile pushbutton: press the cap (while running) to close it. */
+function PushbuttonBody({ placed }: { placed: PlacedComponent }) {
+  const isRunning = useSimulatorStore((s) => s.isRunning)
+  const pressed = useSimulatorStore((s) =>
+    s.pressedButtons.includes(placed.id),
+  )
+  const toggleButton = useSimulatorStore((s) => s.toggleButton)
+  const def = COMPONENT_LIBRARY.pushbutton
+
+  return (
+    <group>
+      <mesh position={[0, 0.06, 0]} castShadow>
+        <boxGeometry args={[0.34, 0.12, 0.34]} />
+        <meshStandardMaterial color={def.color} roughness={0.6} />
+      </mesh>
+      <mesh
+        position={[0, pressed ? 0.13 : 0.16, 0]}
+        castShadow
+        onClick={(e: ThreeEvent<MouseEvent>) => {
+          e.stopPropagation()
+          if (isRunning) toggleButton(placed.id)
+        }}
+        onPointerDown={(e: ThreeEvent<PointerEvent>) => e.stopPropagation()}
+        onPointerOver={() => (document.body.style.cursor = 'pointer')}
+        onPointerOut={() => (document.body.style.cursor = 'auto')}
+      >
+        <cylinderGeometry args={[0.09, 0.09, 0.06, 18]} />
+        <meshStandardMaterial
+          color={pressed ? '#ef4444' : '#e2e8f0'}
+          emissive={pressed ? '#7f1d1d' : '#000000'}
+          emissiveIntensity={pressed ? 0.4 : 0}
+          roughness={0.4}
+        />
+      </mesh>
+    </group>
+  )
 }
 
 function PlacedComponentView({

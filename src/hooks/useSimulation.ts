@@ -12,10 +12,13 @@ export function useSimulation(): SimResult {
   const wires = useSimulatorStore((s) => s.wires)
   const components = useSimulatorStore((s) => s.components)
   const pinStates = useSimulatorStore((s) => s.pinStates)
+  const pressed = useSimulatorStore((s) => s.pressedButtons)
 
   return useMemo(
     () =>
-      isRunning ? simulate({ wires, components, pinStates }) : EMPTY_SIM,
-    [isRunning, wires, components, pinStates],
+      isRunning
+        ? simulate({ wires, components, pinStates, pressed })
+        : EMPTY_SIM,
+    [isRunning, wires, components, pinStates, pressed],
   )
 }

@@ -212,6 +212,13 @@ describe('dragging — positions', () => {
     expect(getState().components[1].position).toEqual([2, 0.12, 2])
   })
 
+  it('toggles a pushbutton pressed state', () => {
+    getState().toggleButton('b1')
+    expect(getState().pressedButtons).toEqual(['b1'])
+    getState().toggleButton('b1')
+    expect(getState().pressedButtons).toEqual([])
+  })
+
   it('moves the board and toggles the dragging flag', () => {
     expect(getState().boardPosition).toEqual([0, 0, 0])
     getState().setBoardPosition([3, 0, 1])

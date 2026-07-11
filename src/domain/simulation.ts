@@ -60,6 +60,8 @@ export interface SimInput {
   components: PlacedComponent[]
   /** Pin states driven by the sketch/lesson; HIGH pins act as sources. */
   pinStates?: Record<string, 'HIGH' | 'LOW'>
+  /** Ids of pushbuttons that are currently pressed (closed). */
+  pressed?: string[]
 }
 
 export interface SimResult {
@@ -96,7 +98,8 @@ function reachable(seeds: Set<string>, edges: [string, string][]): Set<string> {
 
 /** Evaluate the circuit and report which LEDs are lit. */
 export function simulate(input: SimInput): SimResult {
-  const { wires, components, pinStates = {} } = input
+  const { wires, components, pinStates = {}, pressed = [] } = input
+  const pressedSet = new Set(pressed)
   const nets = new Nets()
 
   // 1) Wires merge their two pins into the same net.
@@ -112,6 +115,14 @@ export function simulate(input: SimInput): SimResult {
   for (const c of components) {
     if (c.type === 'resistor') {
       edges.push([nets.net(`${c.id}:a`), nets.net(`${c.id}:b`)])
+    } else if (c.type === 'pushbutton') {
+      // Each side's two pins are always tied together; pressing bridges the
+      // two sides (side A = 1a/1b, side B = 2a/2b).
+      edges.push([nets.net(`${c.id}:1a`), nets.net(`${c.id}:1b`)])
+      edges.push([nets.net(`${c.id}:2a`), nets.net(`${c.id}:2b`)])
+      if (pressedSet.has(c.id)) {
+        edges.push([nets.net(`${c.id}:1a`), nets.net(`${c.id}:2a`)])
+      }
     }
   }
 

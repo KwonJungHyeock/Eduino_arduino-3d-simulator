@@ -1,9 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { Text } from '@react-three/drei'
 import { useSimulatorStore } from '../store/useSimulatorStore'
 import { useSimulation } from '../hooks/useSimulation'
 import { usePinConnect } from '../hooks/usePinConnect'
-import { createPcbTexture } from '../three/createPcbTexture'
+import { useBoardTexture } from '../three/useBoardTexture'
 import { useDraggable } from '../three/useDraggable'
 import {
   ARDUINO_UNO_PINS,
@@ -95,23 +95,71 @@ function BoardFixtures() {
         <meshStandardMaterial color="#0a0a0c" metalness={0.3} roughness={0.6} />
       </mesh>
 
-      {/* ATmega328 microcontroller IC. */}
-      <mesh position={[0.35, BOARD_TOP_Y + 0.06, 0.25]} castShadow>
-        <boxGeometry args={[1.0, 0.12, 0.42]} />
-        <meshStandardMaterial color="#0c0c0e" roughness={0.5} />
+      {/* ATmega328 microcontroller IC with a pin-1 dimple. */}
+      <mesh position={[0.35, BOARD_TOP_Y + 0.07, 0.25]} castShadow>
+        <boxGeometry args={[1.0, 0.14, 0.42]} />
+        <meshStandardMaterial color="#0c0c0e" roughness={0.45} />
+      </mesh>
+      <mesh position={[-0.05, BOARD_TOP_Y + 0.145, 0.4]}>
+        <cylinderGeometry args={[0.03, 0.03, 0.01, 12]} />
+        <meshStandardMaterial color="#333" />
       </mesh>
 
-      {/* 16 MHz crystal. */}
+      {/* 16 MHz crystal (metal can). */}
       <mesh position={[-0.5, BOARD_TOP_Y + 0.07, -0.2]} castShadow>
-        <boxGeometry args={[0.28, 0.12, 0.16]} />
-        <meshStandardMaterial color="#c8ccd2" metalness={0.85} roughness={0.3} />
+        <boxGeometry args={[0.3, 0.12, 0.17]} />
+        <meshStandardMaterial color="#c8ccd2" metalness={0.9} roughness={0.25} />
       </mesh>
 
-      {/* Reset button near the USB connector. */}
-      <mesh position={[-1.15, BOARD_TOP_Y + 0.06, -0.62]} castShadow>
+      {/* Two electrolytic capacitors (silver cans). */}
+      {[-0.35, -0.05].map((cx) => (
+        <mesh key={cx} position={[cx, BOARD_TOP_Y + 0.14, 0.62]} castShadow>
+          <cylinderGeometry args={[0.11, 0.11, 0.28, 20]} />
+          <meshStandardMaterial color="#c0c6cc" metalness={0.85} roughness={0.3} />
+        </mesh>
+      ))}
+
+      {/* Voltage regulator (black tab). */}
+      <mesh position={[-1.05, BOARD_TOP_Y + 0.08, 0.35]} castShadow>
+        <boxGeometry args={[0.5, 0.16, 0.24]} />
+        <meshStandardMaterial color="#17181c" metalness={0.5} roughness={0.5} />
+      </mesh>
+
+      {/* ICSP 2x3 header (black block). */}
+      <mesh position={[1.37, BOARD_TOP_Y + 0.05, 0.1]} castShadow>
+        <boxGeometry args={[0.3, 0.1, 0.2]} />
+        <meshStandardMaterial color="#111418" roughness={0.6} />
+      </mesh>
+
+      {/* Reset button (red cap on a silver body). */}
+      <mesh position={[-1.15, BOARD_TOP_Y + 0.05, -0.62]} castShadow>
         <boxGeometry args={[0.16, 0.1, 0.16]} />
         <meshStandardMaterial color="#9aa0aa" metalness={0.6} roughness={0.4} />
       </mesh>
+      <mesh position={[-1.15, BOARD_TOP_Y + 0.11, -0.62]}>
+        <cylinderGeometry args={[0.04, 0.04, 0.04, 12]} />
+        <meshStandardMaterial color="#d33" roughness={0.4} />
+      </mesh>
+
+      {/* Status LEDs (ON / L / TX / RX). */}
+      {[
+        ['#22c55e', -1.35, 0.0],
+        ['#f59e0b', 0.05, -0.35],
+        ['#f59e0b', 0.05, -0.5],
+        ['#f59e0b', 0.05, -0.65],
+      ].map(([c, x, z], i) => (
+        <mesh
+          key={i}
+          position={[x as number, BOARD_TOP_Y + 0.03, z as number]}
+        >
+          <boxGeometry args={[0.06, 0.03, 0.06]} />
+          <meshStandardMaterial
+            color={c as string}
+            emissive={c as string}
+            emissiveIntensity={0.5}
+          />
+        </mesh>
+      ))}
     </group>
   )
 }
@@ -129,9 +177,8 @@ export default function ArduinoBoard() {
   const { highPins } = useSimulation()
   const highSet = useMemo(() => new Set(highPins), [highPins])
 
-  // Build the silkscreen texture once; free its GPU memory on unmount.
-  const pcbTexture = useMemo(() => createPcbTexture(), [])
-  useEffect(() => () => pcbTexture.dispose(), [pcbTexture])
+  // Procedural silkscreen, auto-replaced by a real photo if one is provided.
+  const pcbTexture = useBoardTexture()
 
   return (
     <group position={boardPosition}>

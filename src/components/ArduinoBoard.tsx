@@ -178,7 +178,7 @@ export default function ArduinoBoard() {
   const highSet = useMemo(() => new Set(highPins), [highPins])
 
   // Procedural silkscreen, auto-replaced by a real photo if one is provided.
-  const pcbTexture = useBoardTexture()
+  const { texture: pcbTexture, isPhoto } = useBoardTexture()
 
   return (
     <group position={boardPosition}>
@@ -186,7 +186,7 @@ export default function ArduinoBoard() {
       <mesh position={[0, BOARD_H / 2, 0]} castShadow receiveShadow>
         <boxGeometry args={[BOARD_W, BOARD_H, BOARD_D]} />
         <meshStandardMaterial
-          color={ARDUINO_TEAL}
+          color={isPhoto ? '#0c2856' : ARDUINO_TEAL}
           emissive={isRunning ? '#00e5ff' : '#000000'}
           emissiveIntensity={isRunning ? 0.35 : 0}
           metalness={0.2}
@@ -194,7 +194,7 @@ export default function ArduinoBoard() {
         />
       </mesh>
 
-      {/* Printed silkscreen on the top surface — also the board's drag handle. */}
+      {/* Board top surface (photo or silkscreen) — also the drag handle. */}
       <mesh
         position={[0, BOARD_TOP_Y + 0.002, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
@@ -211,11 +211,16 @@ export default function ArduinoBoard() {
         />
       </mesh>
 
-      {HEADER_ROWS.map((row) => (
-        <HeaderStrip key={row.z} z={row.z} length={row.length} />
-      ))}
-
-      <BoardFixtures />
+      {/* Procedural 3D fixtures + header strips only when NOT using a photo
+          (a photo already depicts the USB, IC, headers, etc.). */}
+      {!isPhoto && (
+        <>
+          {HEADER_ROWS.map((row) => (
+            <HeaderStrip key={row.z} z={row.z} length={row.length} />
+          ))}
+          <BoardFixtures />
+        </>
+      )}
 
       {ARDUINO_UNO_PINS.map((pin) => (
         <Pin key={pin.id} pin={pin} simHigh={highSet.has(pin.id)} />

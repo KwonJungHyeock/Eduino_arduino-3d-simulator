@@ -6,17 +6,30 @@ import { createPcbTexture } from './createPcbTexture'
 const PHOTO_PATH = '/textures/uno-top.png'
 
 /**
+ * Orientation of the photo relative to the 3D board. If the photo appears
+ * rotated/mirrored versus the pins, flip these (they're the only knobs needed).
+ */
+const PHOTO_FLIP_Y = false // false → image top maps to the board's digital edge
+
+export interface BoardTexture {
+  texture: THREE.Texture
+  /** True once a real board photo has loaded (procedural art is hidden then). */
+  isPhoto: boolean
+}
+
+/**
  * Returns the board's top-surface texture.
  *
  * Starts with the procedural silkscreen, then—if a real photo exists at
- * `public/textures/uno-top.png`—swaps to it automatically. Drop in a
- * (licensed) top-down Uno photo and it is used with zero code changes; if the
- * file is absent the procedural art stays.
+ * `public/textures/uno-top.png`—swaps to it automatically and reports
+ * `isPhoto`, so the board can hide its procedural 3D fixtures (the photo
+ * already shows the USB/jack/IC/etc.).
  */
-export function useBoardTexture(): THREE.Texture {
-  const [texture, setTexture] = useState<THREE.Texture>(() =>
-    createPcbTexture(),
-  )
+export function useBoardTexture(): BoardTexture {
+  const [state, setState] = useState<BoardTexture>(() => ({
+    texture: createPcbTexture(),
+    isPhoto: false,
+  }))
 
   useEffect(() => {
     let active = true
@@ -27,9 +40,11 @@ export function useBoardTexture(): THREE.Texture {
         if (!active) return
         photo.colorSpace = THREE.SRGBColorSpace
         photo.anisotropy = 8
-        setTexture((prev) => {
-          prev.dispose()
-          return photo
+        photo.flipY = PHOTO_FLIP_Y
+        photo.needsUpdate = true
+        setState((prev) => {
+          prev.texture.dispose()
+          return { texture: photo, isPhoto: true }
         })
       },
       undefined,
@@ -42,7 +57,7 @@ export function useBoardTexture(): THREE.Texture {
     }
   }, [])
 
-  useEffect(() => () => texture.dispose(), [texture])
+  useEffect(() => () => state.texture.dispose(), [state.texture])
 
-  return texture
+  return state
 }
